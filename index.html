@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <title>COVID</title>
+    <script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="syles.css">
+    <style></style>
+</head>
+<body>
+<div id="container" class="svg-container"></div>
+<script>
+    //------------------------1. PREPARATION-------------------------//
+    //-----------------------------SVG-------------------------------//
+    const width = 960;
+    const height = 500;
+    const margin = 5;
+    const padding = 5;
+    const adj = 30;
+    // we are appending SVG first
+    const svg = d3.select("div#container").append("svg")
+        .attr("preserveAspectRatio", "xMinYMin meet")
+        .attr("viewBox", "-"
+            + adj + " -"
+            + adj + " "
+            + (width + adj *3) + " "
+            + (height + adj*3))
+        .style("padding", padding)
+        .style("margin", margin)
+        .classed("svg-content", true);
+
+    //-----------------------------DATA------------------------------//
+    const dataset = d3.csv("covid_data.csv");
+    dataset.then(function(data) {
+        const slices = data.columns.slice(1).map(function(id) {
+            return {
+                id: id,
+                values: data.map(function(d){
+                    return {
+                        day: +d['Day Since 25 Cases'],
+                        measurement: +d[id] > 0 ? +d[id] : null
+                    };
+                })
+            };
+        });
+
+        console.log("Column headers", data.columns);
+        console.log("Column headers without date", data.columns.slice(1));
+// returns the sliced dataset
+        console.log("Slices",slices);
+// returns the first slice
+        console.log("First slice",slices[0]);
+// returns the array in the first slice
+        console.log("A array",slices[0].values);
+// returns the date of the first row in the first slice
+        console.log("Date element",slices[0].values[0].date);
+// returns the array's length
+        console.log("Array length",(slices[0].values).length);
+
+        //----------------------------SCALES-----------------------------//
+
+        const xScale = d3.scaleLinear().range([50,width]);
+        const yScale = d3.scaleLinear().rangeRound([height - 50, 0]);
+        xScale.domain([0,40]);
+
+        yScale.domain([(0), d3.max(slices, function(c) {
+            return d3.max(c.values, function(d) {
+                return d.measurement + 4; });
+        })
+        ]);
+
+        //-----------------------------AXES------------------------------//
+        const yaxis = d3.axisLeft().scale(yScale);
+        const xaxis = d3.axisBottom().scale(xScale)
+            .ticks(20);
+
+        //----------------------------LINES------------------------------//
+        const line = d3.line()
+            .defined(function(d) { return d.measurement != null; })
+            .x(function(d) { return xScale(d.day); })
+            .y(function(d) { return yScale(d.measurement); });
+
+        let id = 0;
+        const ids = function () {
+            return "line-"+id++;
+        };
+
+        //-------------------------2. DRAWING----------------------------//
+
+        //-----------------------------TITLE------------------------------//
+
+        var title = d3.select('body')
+            .append('div')
+            .attr('class', 'title')
+            .text('US County COVID-19 First Month Curves')
+            .style('left', '320px')
+            .style('top', '0px');
+
+
+        //-----------------------------AXES------------------------------//
+
+        svg.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(0,450)")
+            .call(xaxis)
+            .append("text")
+            .attr("y", 50)
+            .attr('x', 500)
+            .text("Days Since Cases Within County Rose Above 25");
+
+        svg.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(50,0)")
+            .call(yaxis)
+            //this you append
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -70)
+            .attr('x', -220)
+            .text("Confirmed Cases");
+
+        //----------------------------LINES------------------------------//
+        const lines = svg.selectAll("lines")
+            .data(slices)
+            .enter()
+            .append("g");
+
+        lines.append("path")
+            .attr("class", 'line')
+            .attr("d", function(d) { return line(d.values); });
+
+
+        const ghost_lines = lines.append("path")
+            .attr("class", 'ghost-line')
+            .attr("d", function(d) { return line(d.values); });
+
+
+        //-----------------------------EVENTS----------------------------//
+
+        console.log(slices);
+
+        var divtip = d3.select('body')
+            .append('div')
+            .attr('class', 'divtip');
+
+
+        svg.selectAll(".ghost-line")
+            .on('mouseover', function(d) {
+                const selection = d3.select(this).raise();
+                selection
+                    .transition()
+                    .delay("100")
+                    .duration("10")
+                    .style("stroke","#ed3700")
+                    .style("opacity","1")
+                    .style("stroke-width","2");
+                divtip
+                    .transition()
+                    .duration(200)
+                divtip
+                    .html(d.id)
+                    .style('left', '700px')
+                    .style('top', '380px')
+
+
+
+
+            })
+            .on('mouseout', function() {
+                const selection = d3.select(this)
+                selection
+                    .transition()
+                    .delay("100")
+                    .duration("10")
+                    .style("stroke","#d2d2d2")
+                    .style("opacity","0")
+                    .style("stroke-width","10");
+                divtip
+                    .html('')
+
+            });
+
+
+
+
+
+
+
+    });
+</script>
